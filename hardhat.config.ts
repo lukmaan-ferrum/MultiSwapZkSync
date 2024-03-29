@@ -45,11 +45,6 @@ const config: HardhatUserConfig = {
         mode: '3', // optional. 3 by default, z to optimize bytecode size
         fallback_to_optimizing_for_size: true, // optional. Try to recompile with optimizer mode "z" if the bytecode is too large
       },
-        libraries: {
-              "contracts/common/oneInch/OneInchDecoder.sol": {
-                "OneInchDecoder": "0x111C3E89Ce80e62EE88318C2804920D4c96f92bb"
-              }
-            }
     },
   },
   solidity: {
