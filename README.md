@@ -1,6 +1,6 @@
 # zkSync MultiSwap
 
-Put private key in `.env` and update rpc endpoint in `deploy/main.ts`. Then:
+Put private key in `.env`, then:
 
 ```
 yarn install
