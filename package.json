@@ -1,5 +1,5 @@
 {
-  "name": "MultiSwapZkSync",
+  "name": "multiswap-zksync",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -27,7 +27,6 @@
     "dotenv": "^16.0.3",
     "ethers": "^6.9.2",
     "hardhat": "^2.12.4",
-    "hardhat-contract-sizer": "^2.10.0",
     "mocha": "^10.2.0",
     "ts-node": "^10.9.1",
     "typechain": "^8.3.2",

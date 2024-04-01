@@ -5,7 +5,6 @@ import "@matterlabs/hardhat-zksync-solc";
 import "@matterlabs/hardhat-zksync-verify";
 import "@matterlabs/hardhat-zksync-ethers";
 import '@typechain/hardhat'
-import "hardhat-contract-sizer";
 
 
 const config: HardhatUserConfig = {
@@ -40,6 +39,7 @@ const config: HardhatUserConfig = {
   zksolc: {
     version: "1.4.0",
     settings: {
+      isSystem: true,
       optimizer: {
         enabled: true, // optional. True by default
         mode: '3', // optional. 3 by default, z to optimize bytecode size
@@ -53,6 +53,10 @@ const config: HardhatUserConfig = {
         version: "0.8.24",
       },
     ],
+  },
+  typechain: {
+    outDir: "types",
+    target: "ethers-v6",
   },
 };
 
