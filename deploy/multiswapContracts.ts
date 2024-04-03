@@ -15,7 +15,7 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
 
     // Deploy contracts
     const salt = "0x3137303931363532303433393900000000000000000000000000000000000000";
-    const contractNames = ["FiberRouter", "FundManager", "ForgeFundManager", "MultiSwapForge"];
+    const contractNames = ["FiberRouterV2", "FundManager", "ForgeFundManager", "MultiSwapForge"];
 
     for (const contractName of contractNames) {
         const deployTx = await ferrumDeployer.deploy(salt, contractNames.indexOf(contractName), wallet.address)
@@ -31,5 +31,5 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
 
 
 export default deployScript;
-deployScript.tags = ["multiswapContracts", "prod"]
+deployScript.tags = ["multiswapContracts", "prod", "test"]
 deployScript.dependencies = ["ferrumDeployer"]

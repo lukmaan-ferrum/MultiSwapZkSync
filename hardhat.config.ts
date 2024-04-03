@@ -5,6 +5,8 @@ import "@matterlabs/hardhat-zksync-solc";
 import "@matterlabs/hardhat-zksync-verify";
 import "@matterlabs/hardhat-zksync-ethers";
 import '@typechain/hardhat'
+import dotenv from "dotenv";
+dotenv.config();
 
 
 const config: HardhatUserConfig = {
@@ -31,6 +33,7 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8011",
       ethNetwork: "localhost", // in-memory node doesn't support eth node; removing this line will cause an error
       zksync: true,
+      accounts: [process.env.LOCAL_TEST_PRIVATE_KEY!, process.env.WALLET_PRIVATE_KEY!]
     },
     hardhat: {
       zksync: true,

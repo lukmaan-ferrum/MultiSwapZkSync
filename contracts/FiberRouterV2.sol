@@ -4,8 +4,6 @@ pragma solidity ^0.8.17;
 import "./FundManager.sol";
 import "./common/tokenReceiveable.sol";
 import "./common/SafeAmount.sol";
-import "./common/oneInch/OneInchDecoder.sol";
-import "./common/oneInch/IOneInchSwap.sol";
 import "./common/IWETH.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -13,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  @author The ferrum network.
  @title This is a routing contract named as FiberRouter.
 */
-contract FiberRouter is Ownable, TokenReceivable {
+contract FiberRouterV2 is Ownable, TokenReceivable {
     using SafeERC20 for IERC20;
     address public pool;
     address payable public gasWallet;
@@ -62,26 +60,6 @@ contract FiberRouter is Ownable, TokenReceivable {
         string targetAddress,
         uint256 settledAmount,
         bytes32 withdrawalData
-    );
-    event UnoSwapHandled(
-        address indexed swapRouter,
-        address indexed to,
-        address indexed fromToken,
-        uint256 amountIn,
-        uint256 amountOut
-    );
-    event UniswapV3SwapHandled(
-        address indexed swapRouter,
-        address indexed to,
-        uint256 amountIn,
-        uint256 amountOut
-    );
-    event SwapHandled(
-        address indexed swapRouter,
-        address indexed to,
-        address indexed fromToken,
-        uint256 amountIn,
-        uint256 amountOut
     );
 
     /**
@@ -479,11 +457,8 @@ contract FiberRouter is Ownable, TokenReceivable {
         }
         // Set the allowance to the swap amount
         IERC20(foundryToken).safeApprove(oneInchAggregatorRouter, amountIn);
+        
         uint256 amountOutOneInch = swapHelperForOneInch(
-            to,
-            foundryToken,
-            amountIn,
-            amountOut,
             oneInchData
         );
         require(amountOutOneInch != 0, "FR: Bad amount out from oneInch");
@@ -501,311 +476,31 @@ contract FiberRouter is Ownable, TokenReceivable {
 
     /**
      * @dev Helper function for executing token swaps using OneInch aggregator
-     * @param to The recipient address to receive the swapped tokens
-     * @param srcToken The source token to be swapped (input token)
-     * @param amountIn The amount of input tokens to be swapped
-     * @param amountOut The expected amount of output tokens after the swap
      * @param oneInchData The data containing information for the 1inch swap
      * @return returnAmount The amount of tokens received after the swap and transaction execution
      */
-    function swapHelperForOneInch(
-        address payable to,
-        address srcToken,
-        uint256 amountIn,
-        uint256 amountOut,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        // Extract the first 4 bytes from data
-        bytes4 receivedSelector;
+    function swapHelperForOneInch(bytes memory oneInchData) internal returns (uint256) {
+        (bool success, bytes memory returnData) = oneInchAggregatorRouter.call(oneInchData);
+    
+        if (!success) {
+            if (returnData.length > 0) {
+                assembly {
+                    let returnDataSize := mload(returnData)
+                    revert(add(32, returnData), returnDataSize)
+                }
+            } else {
+                revert("Call to oneInchAggregationRouter failed");
+            }
+        }
+        
+        require(returnData.length >= 32, "Response too short");
+        
+        uint256 returnAmount;
         assembly {
-            // Extract the first 4 bytes directly from the data
-            // Assuming 'data' starts with the 4-byte function selector
-            receivedSelector := mload(add(oneInchData, 32))
+            returnAmount := mload(add(returnData, 0x20))
         }
-        // checking the function signature accoridng to oneInchData
-        if (receivedSelector == OneInchDecoder.selectorUnoswap) {
-            returnAmount = handleUnoSwap(to, srcToken, amountIn, amountOut, oneInchData);
-        } else if (receivedSelector == OneInchDecoder.selectorUniswapV3Swap) {
-            returnAmount = handleUniswapV3Swap(to, amountIn, amountOut, oneInchData);
-        } else if (receivedSelector == OneInchDecoder.selectorSwap) {
-            returnAmount = handleSwap(to, srcToken, amountIn, amountOut, oneInchData);
-        } else if (receivedSelector == OneInchDecoder.selectorFillOrderTo) {
-            returnAmount = handleFillOrderTo(to, srcToken, amountIn, oneInchData);
-        } else if (receivedSelector == OneInchDecoder.selectorFillOrderRFQTo) {
-            returnAmount = handleFillOrderRFQTo(to, srcToken, amountIn, oneInchData);
-        } else {
-            revert("FR: incorrect oneInchData");
-        }
-    }
-
-    /**
-     * @dev Handles the execution of a token swap operation using UnoSwap
-     * @param to The recipient address to receive the swapped tokens
-     * @param fromToken The token to be swapped from (input token)
-     * @param amountIn The amount of input tokens to be swapped
-     * @param amountOut The expected amount of output tokens after the swap
-     * @param oneInchData The data containing information for the 1inch swap
-     * @return returnAmount The amount of tokens received after the swap and transaction execution
-     */
-    function handleUnoSwap(
-        address payable to,
-        address fromToken,
-        uint256 amountIn,
-        uint256 amountOut,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        (
-            address payable recipient,
-            address srcToken,
-            uint256 amount,
-            uint256 minReturn,
-            uint256[] memory poolsOneInch
-        ) = OneInchDecoder.decodeUnoswap(oneInchData);
-        require(to == recipient, "FR: recipient address bad oneInch Data");
-        require(fromToken == srcToken, "FR: srcToken bad oneInch Data");
-        require(amountIn == amount, "FR: inputAmount bad oneInch Data");
-        require(amountOut == minReturn, "FR: outAmount bad oneInch Data");
-        require(oneInchData.length >= 4, "Data too short for valid call");
-        returnAmount = IOneInchSwap(oneInchAggregatorRouter).unoswapTo(
-            recipient,
-            srcToken,
-            amount,
-            minReturn,
-            poolsOneInch
-        );
-        emit UnoSwapHandled(
-            oneInchAggregatorRouter,
-            to,
-            fromToken,
-            amountIn,
-            returnAmount //should return by the unoSwap
-        );
-    }
-
-    /**
-     * @dev Handles the execution of a token swap operation involving 1inch aggregator
-     * @param to The recipient address to receive the swapped tokens
-     * @param amountIn The amount of input tokens to be swapped
-     * @param amountOut The expected amount of output tokens after the swap
-     * @param oneInchData The data containing information for the 1inch swap
-     * @return returnAmount The amount of tokens received after the swap and transaction execution
-     */
-    function handleUniswapV3Swap(
-        address payable to,
-        uint256 amountIn,
-        uint256 amountOut,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        (
-            address payable recipient,
-            uint256 amount,
-            uint256 minReturn,
-            uint256[] memory poolsOneInch
-        ) = OneInchDecoder.decodeUniswapV3Swap(oneInchData);
-        require(to == recipient, "FR: recipient address bad oneInch Data");
-        require(amountIn == amount, "FR: inputAmount bad oneInch Data");
-        require(amountOut == minReturn, "FR: outAmount bad oneInch Data");
-        require(oneInchData.length >= 4, "Data too short for valid call");
-        returnAmount = IOneInchSwap(oneInchAggregatorRouter).uniswapV3SwapTo(
-            recipient,
-            amount,
-            minReturn,
-            poolsOneInch
-        );
-        emit UniswapV3SwapHandled(
-            oneInchAggregatorRouter,
-            to,
-            amountIn,
-            returnAmount //should be returned by uniswapV3SwapTo
-        );
-    }
-
-    /**
-     * @dev Handles the execution of a token swap operation, potentially involving 1inch aggregator
-     * @param to The recipient address to receive the swapped tokens
-     * @param fromToken The address of the input token for the swap
-     * @param amountIn The amount of input tokens to be swapped
-     * @param amountOut The expected amount of output tokens after the swap
-     * @param oneInchData The data containing information for the 1inch swap
-     * @return returnAmount The amount of tokens received after the swap and transaction execution
-     */
-    function handleSwap(
-        address payable to,
-        address fromToken,
-        uint256 amountIn,
-        uint256 amountOut,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        // Decoding oneInchData to get the required parameters
-        (
-            address executor,
-            OneInchDecoder.SwapDescription memory desc,
-            bytes memory permit,
-            bytes memory swapData
-        ) = OneInchDecoder.decodeSwap(oneInchData);
-        // Manually create a new SwapDescription for IOneInchSwap
-        IOneInchSwap.SwapDescription memory oneInchDesc = IOneInchSwap
-            .SwapDescription({
-                srcToken: IERC20(desc.srcToken),
-                dstToken: IERC20(desc.dstToken),
-                srcReceiver: desc.srcReceiver,
-                dstReceiver: desc.dstReceiver,
-                amount: desc.amount,
-                minReturnAmount: desc.minReturnAmount,
-                flags: desc.flags
-            });
-
-        // Accessing fields of the desc instance of SwapDescription struct
-        require(
-            to == desc.dstReceiver,
-            "FR: recipient address bad oneInch Data"
-        );
-        require(amountIn == desc.amount, "FR: inputAmount bad oneInch Data");
-        require(
-            amountOut == desc.minReturnAmount,
-            "FR: outAmount bad oneInch Data"
-        );
-        require(fromToken == desc.srcToken, "FR: srcToken bad oneInch Data");
-
-        // Additional safety check
-        require(oneInchData.length >= 4, "Data too short for valid call");
-
-        // Performing the swap
-        ( returnAmount,) = IOneInchSwap(oneInchAggregatorRouter).swap(
-            executor,
-            oneInchDesc,
-            permit,
-            swapData
-        );
-        emit SwapHandled(
-            oneInchAggregatorRouter,
-            to,
-            fromToken,
-            amountIn,
-            returnAmount // should be returned 
-        );
-    }
-
-    /**
-     * @dev Handles the execution of the `fillOrderTo` operation, involving 1inch aggregator
-     * @param to The recipient address to receive the swapped tokens
-     * @param fromToken The address of the input token for the swap (foundryToken or takerAsset)
-     * @param amountIn The amount of input tokens to be swapped
-     * @param oneInchData The data containing information for the 1inch swap
-     * @return returnAmount The amount of tokens received after the swap and transaction execution
-     */
-    function handleFillOrderTo(
-        address payable to,
-        address fromToken,  // foundryToken // takerAsset
-        uint256 amountIn,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        // Decoding oneInchData to get the required parameters
-        (
-            OneInchDecoder.Order memory order_,
-            bytes memory signature,
-            bytes memory interaction,
-            uint256 makingAmount,
-            uint256 takingAmount,  // destinationAmountIn
-            uint256 skipPermitAndThresholdAmount,
-            address target  // receiverAddress
-        ) = OneInchDecoder.decodeFillOrderTo(oneInchData);
-
-        // Manually create a new Order for IOneInchSwap
-        IOneInchSwap.Order memory oneInchOrder = IOneInchSwap
-            .Order({
-                salt: order_.salt,
-                makerAsset: order_.makerAsset,
-                takerAsset: order_.takerAsset,
-                maker: order_.maker,
-                receiver: order_.receiver,
-                allowedSender: order_.allowedSender,
-                makingAmount: order_.makingAmount,
-                takingAmount: order_.takingAmount,
-                offsets: order_.offsets,
-                interactions: order_.interactions
-            });
-
-        // Perform additional checks and validations if needed
-        require(to == target, "FR: recipient address bad oneInch Data");
-        require(fromToken == order_.takerAsset, "FR: takerAsset bad oneInch Data");
-        require(amountIn == takingAmount, "FR: inputAmount bad oneInch Data ");
-        require(oneInchData.length >= 4, "Data too short for valid call");
-
-        // Performing the swap
-        ( returnAmount, , ) = IOneInchSwap(oneInchAggregatorRouter).fillOrderTo(
-            oneInchOrder,
-            signature,
-            interaction,
-            makingAmount,
-            takingAmount,
-            skipPermitAndThresholdAmount,
-            target
-        );
-
-        emit SwapHandled(
-            oneInchAggregatorRouter,
-            to,
-            fromToken,
-            amountIn,
-            returnAmount // should be returned 
-        );
-    }
-
-    /**
-     * @dev Handles the execution of the `fillOrderRFQTo` operation, involving 1inch aggregator
-     * @param to The recipient address to receive the swapped tokens
-     * @param fromToken The address of the input token for the swap (foundryToken or takerAsset)
-     * @param amountIn The amount of input tokens to be swapped
-     * @param oneInchData The data containing information for the 1inch swap
-     * @return returnAmount The amount of tokens received after the swap and transaction execution
-     */
-    function handleFillOrderRFQTo(
-        address payable to,
-        address fromToken,  // foundryToken // takerAsset
-        uint256 amountIn,
-        bytes memory oneInchData
-    ) internal returns (uint256 returnAmount) {
-        // Decoding oneInchData to get the required parameters
-        (
-            OneInchDecoder.OrderRFQ memory order,
-            bytes memory signature,
-            uint256 flagsAndAmount,
-            address target // receiverAddress
-        ) = OneInchDecoder.decodeFillOrderRFQTo(oneInchData);
-
-        // Manually create a new OrderRFQ for IOneInchSwap
-        IOneInchSwap.OrderRFQ memory oneInchOrderRFQ = IOneInchSwap.OrderRFQ({
-            info: order.info,
-            makerAsset: order.makerAsset,
-            takerAsset: order.takerAsset,
-            maker: order.maker,
-            allowedSender: order.allowedSender,
-            makingAmount: order.makingAmount,
-            takingAmount: order.takingAmount
-        });
-
-        // Perform additional checks and validations if needed
-        require(to == target, "FR: recipient address bad oneInch Data");
-        require(fromToken == order.takerAsset, "FR: takerAsset bad oneInch Data");
-        require(amountIn == order.takingAmount, "FR: inputAmount bad oneInch Data ");
-        require(oneInchData.length >= 4, "Data too short for valid call");
-
-        // Performing the swap
-        ( returnAmount, , ) = IOneInchSwap(oneInchAggregatorRouter).fillOrderRFQTo(
-            oneInchOrderRFQ,
-            signature,
-            flagsAndAmount,
-            target
-        );
-
-        emit SwapHandled(
-            oneInchAggregatorRouter,
-            to,
-            fromToken,
-            amountIn,
-            returnAmount // should be returned 
-        );
+        
+        return returnAmount;
     }
 
     /**
@@ -837,10 +532,6 @@ contract FiberRouter is Ownable, TokenReceivable {
         IERC20(fromToken).safeApprove(oneInchAggregatorRouter, amountIn);
 
         uint256 oneInchAmountOut = swapHelperForOneInch(
-            payable(pool),
-            fromToken,
-            amountIn,
-            amountOut,
             oneInchData
         );
         FMAmountOut = FundManager(pool).swapToAddress(

@@ -4,6 +4,8 @@ pragma solidity ^0.8.17;
 import "./common/signature/SigCheckable.sol";
 import "./LiquidityManagerRole.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "hardhat/console.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 
 contract FundManager is SigCheckable, LiquidityManagerRole {
@@ -102,6 +104,61 @@ contract FundManager is SigCheckable, LiquidityManagerRole {
         settlementManager = _settlementManager;
     }
 
+    function viewMessage(
+        address to,
+        uint256 amountIn,
+        uint256 amountOut,
+        address foundryToken,
+        address targetToken,
+        bytes memory oneInchData,
+        bytes32 salt,
+        uint256 expiry
+    ) public pure returns (bytes32) {
+        bytes32 message =  keccak256(
+            abi.encode(
+                WITHDRAW_SIGNED_ONEINCH__METHOD,
+                to,
+                amountIn,
+                amountOut,
+                foundryToken,
+                targetToken,
+                oneInchData,
+                salt,
+                expiry
+            )
+        );
+
+        return message;
+    }
+
+    function viewDigest(bytes32 message) external view returns (bytes32 digest) {
+        return _hashTypedDataV4(message);
+    }
+
+    function viewInterm(bytes32 domainSeparator, bytes32 structHash) external pure returns (bytes memory) {
+        bytes memory data = new bytes(66); // Create a new fixed-size byte array
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, "\x19\x01")
+            mstore(add(ptr, 0x02), domainSeparator)
+            mstore(add(ptr, 0x22), structHash)
+
+            // Copy the constructed data into the 'data' byte array
+            for { let i := 0 } lt(i, 0x42) { i := add(i, 0x20) } {
+                mstore(add(data, add(0x20, i)), mload(add(ptr, i)))
+            }
+        }
+        return data;
+    }
+
+    function viewSigner(bytes32 digest, bytes memory signature) external pure returns (address _signer) {
+        return ECDSA.recover(digest, signature);
+    }
+
+    function buildDomainSeparator() external view returns (bytes32) {
+        bytes32 _TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        return keccak256(abi.encode(_TYPE_HASH, NAME, VERSION, block.chainid, address(this)));
+    }
 
     /**
      @dev sets the router

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "./FiberRouter.sol";
+import "./FiberRouterV2.sol";
 
-contract MultiSwapForge is FiberRouter {
+contract MultiSwapForge is FiberRouterV2 {
     
     address public gasEstimationAddress;
 
-    constructor() FiberRouter() {}
+    constructor() FiberRouterV2() {}
 
     /**
      @dev Sets address authorized to execute gas estimations

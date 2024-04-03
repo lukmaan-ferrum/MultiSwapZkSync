@@ -12,7 +12,7 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
     const ferrumDeployerArtifact = await deployer.loadArtifact("FerrumDeployer")
 
     // Contracts to deploy bytecodes and bytecode hashes
-    const contractNames = ["FiberRouter", "FundManager", "ForgeFundManager", "MultiSwapForge"];
+    const contractNames = ["FiberRouterV2", "FundManager", "ForgeFundManager", "MultiSwapForge"];
     const bytecodes = [];
     const bytecodeHashes = [];
 
@@ -53,4 +53,4 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
 
 
 export default deployScript;
-deployScript.tags = ["ferrumDeployer", "prod"]
+deployScript.tags = ["ferrumDeployer", "prod", "test"]

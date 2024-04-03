@@ -14,7 +14,7 @@ const settlementManagerAddress = "0x5912cE9327C2F8BE2Ffce1e8E521F6a65A870a19"
 const gasWallet = "0xBFBFE0e25835625efa98161e3286Ca1290057E1a"
 const gasEstimationAddress = "0x896aa74980f510e17Ec22A9906b6ce82Ef84C49F"
 
-const wethZkSync = "0xf00DAD97284D0c6F06dc4Db3c32454D4292c6813"
+const wethZkSync = "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91"
 const foundryZkSync = "0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4"
 
 const chainData: { [key: string]: { foundry: string; chainID: number } } = {
@@ -35,7 +35,7 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
     const rawData = fs.readFileSync(path.join(__dirname, 'deployedAddresses.json'), { encoding: 'utf8' });
     const deployedAddresses = JSON.parse(rawData);
 
-    const fiberRouter = await hre.zksyncEthers.getContractAt("FiberRouter", deployedAddresses.FiberRouter, wallet)
+    const fiberRouter = await hre.zksyncEthers.getContractAt("FiberRouterV2", deployedAddresses.FiberRouterV2, wallet)
     const fundManager = await hre.zksyncEthers.getContractAt("FundManager", deployedAddresses.FundManager, wallet)
     const forgeFundManager = await hre.zksyncEthers.getContractAt("ForgeFundManager", deployedAddresses.ForgeFundManager, wallet)
     const multiSwapForge = await hre.zksyncEthers.getContractAt("MultiSwapForge", deployedAddresses.MultiSwapForge, wallet)
@@ -60,7 +60,7 @@ const deployScript = async function (hre: HardhatRuntimeEnvironment) {
     for (const [chainName, { foundry, chainID }] of Object.entries(chainData)) {
         await sendTx(
             fundManager.allowTarget(foundryZkSync, chainID, foundry),
-            `${chainName} targer succesfully added to FundManager!`
+            `${chainName} target succesfully added to FundManager!`
         )
     }
 }
