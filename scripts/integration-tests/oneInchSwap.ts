@@ -51,18 +51,18 @@ async function oneInchApi(
 
     const chainId = 324
 
-    const url = `https://api.1inch.dev/swap/v6.0/${chainId}/swap`;
+    const url = `https://api.1inch.dev/swap/v6.0/1/swap`;
 
     const config = {
         headers: {
             "Authorization": `Bearer ${process.env.ONE_INCH_API_KEY}`
         },
         params: {
-            "src": src,
-            "dst": dst,
-            "amount": amount,
+            "src": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "dst": "0xb23d80f5FefcDDaa212212F028021B41DEd428CF",
+            "amount": 100000000,
             "from": from,
-            "slippage": "2",
+            "slippage": "10",
             "includeProtocols": "true",
             "allowPartialFill": "true",
             "disableEstimate": "true"

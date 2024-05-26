@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.0;
 
-import "./common/WithAdmin.sol";
-import "./common/SafeAmount.sol";
-import "./common/tokenReceiveable.sol";
+import "../common/WithAdmin.sol";
+import "../common/SafeAmount.sol";
+import "../common/tokenReceiveable.sol";
 
 abstract contract LiquidityManagerRole is WithAdmin, TokenReceivable {
     using SafeERC20 for IERC20;

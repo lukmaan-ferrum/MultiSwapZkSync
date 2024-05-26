@@ -9,7 +9,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  */
 abstract contract SigCheckable is EIP712 {
 
-    function signerUnique(bytes32 message, bytes memory signature) internal view returns (address _signer) {
+    function signerUnique(
+        bytes32 message,
+        bytes memory signature) internal view returns (address _signer) {
         bytes32 digest;
         (digest, _signer) = signer(message, signature);
     }
@@ -26,7 +28,9 @@ abstract contract SigCheckable is EIP712 {
           amount,
           salt
     */
-    function signer(bytes32 message, bytes memory signature) internal view returns (bytes32 digest, address _signer) {
+    function signer(
+        bytes32 message,
+        bytes memory signature) internal view returns (bytes32 digest, address _signer) {
         digest = _hashTypedDataV4(message);
         _signer = ECDSA.recover(digest, signature);
     }

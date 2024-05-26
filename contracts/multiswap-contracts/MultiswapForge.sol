@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.24;
 
-import "./FiberRouterV2.sol";
+import "./FiberRouter.sol";
 
-contract MultiSwapForge is FiberRouterV2 {
+contract MultiSwapForge is FiberRouter {
     
     address public gasEstimationAddress;
 
-    constructor() FiberRouterV2() {}
+    constructor() {}
 
     /**
      @dev Sets address authorized to execute gas estimations
@@ -28,7 +28,8 @@ contract MultiSwapForge is FiberRouterV2 {
         uint256 amount,
         bytes32 salt,
         uint256 expiry,
-        bytes memory multiSignature
+        bytes memory multiSignature,
+        bool cctpType
     ) public override {
         revert("Not Supported");
     }
@@ -39,7 +40,8 @@ contract MultiSwapForge is FiberRouterV2 {
         uint256 amount,
         bytes32 salt,
         uint256 expiry,
-        bytes memory multiSignature
+        bytes memory multiSignature,
+        bool cctpType
     ) external {
         super.withdrawSigned(
             token,
@@ -47,52 +49,60 @@ contract MultiSwapForge is FiberRouterV2 {
             amount,
             salt,
             expiry,
-            multiSignature
+            multiSignature,
+            cctpType
         );
 
         require(msg.sender == gasEstimationAddress, "only authorised gas estimation address");
     }
 
-    // Override and revert the 'withdrawSignedAndSwapOneInch' function
-    function withdrawSignedAndSwapOneInch(
+    // Override and revert the 'withdrawSignedAndSwapRouter function
+    function withdrawSignedAndSwapRouter(
         address payable to,
         uint256 amountIn,
-        uint256 amountOut,
+        uint256 minAmountOut,
         address foundryToken,
         address targetToken,
-        bytes memory oneInchData,
+        address router,
+        bytes memory routerCalldata,
         bytes32 salt,
         uint256 expiry,
-        bytes memory multiSignature
+        bytes memory multiSignature,
+        bool cctpType
     ) public override {
        revert("Not Supported");
     }
 
     // This function is only used specifically for GasEstimation & Simulation of withdrawSignedAndSwapOneInch
-    function withdrawSignedAndSwapOneInchForGasEstimation(
+    function withdrawSignedAndSwapRouterForGasEstimation(
         address payable to,
         uint256 amountIn,
-        uint256 amountOut,
+        uint256 minAmountOut,
         address foundryToken,
         address targetToken,
-        bytes memory oneInchData,
+        address router,
+        bytes memory routerCalldata,
         bytes32 salt,
         uint256 expiry,
-        bytes memory multiSignature
+        bytes memory multiSignature,
+        bool cctpType
     ) external {
         // Call the original function from FiberRouter
-        super.withdrawSignedAndSwapOneInch(
+        super.withdrawSignedAndSwapRouter(
             to,
             amountIn,
-            amountOut,
+            minAmountOut,
             foundryToken,
             targetToken,
-            oneInchData,
+            router,
+            routerCalldata,
             salt,
             expiry,
-            multiSignature
+            multiSignature,
+            cctpType
         );
 
         require(msg.sender == gasEstimationAddress, "only authorised gas estimation address");
     }
+
 }
